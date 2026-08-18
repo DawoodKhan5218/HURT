@@ -169,17 +169,7 @@ GPS Not Prompting
 · Check browser site permissions
 · Enable device GPS
 
-Camera Freezing
 
-· Anti-freeze logic uses off-screen video
-· Reduce photo count if needed
-
-Form Data Not Captured
-
-· Ensure webhook.php is updated
-· Check data.txt is writable
-
----
 
 Security Notes
 
