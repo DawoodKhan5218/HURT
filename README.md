@@ -189,8 +189,7 @@ GPS Not Prompting
 ## Credits
 The idea was taken from techchipnet
 **GitHub: github.com/techchipnet**
-## Redeveloped by: DAWOOD Disclaimer
-
+## Redeveloped by: DAWOOD KHAN
 GitHub: github.com/DawoodKhan5218
 
 ---
