@@ -1,0 +1,22 @@
+# Data files (victim information)
+data.txt
+ip.txt
+saved.ip.txt
+targetreport.txt
+
+# Captured data
+captures/
+profiles/
+
+# Generated files
+index.html
+index.php
+*.tmp
+cf.log
+
+# Binary files
+cloudflared
+
+# OS files
+.DS_Store
+Thumbs.db
