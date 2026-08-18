@@ -121,7 +121,7 @@ hurt/
 
 ---
 
-How It Works
+## Directory It Works
 
 1. Victim clicks phishing link → ip.php logs IP & User-Agent
 2. Page redirects to selected template
@@ -134,7 +134,7 @@ How It Works
 
 ---
 
-Creating Custom Templates
+## How Custom Templates
 
 Any HTML file in templates/ automatically appears in the menu.
 
@@ -152,7 +152,7 @@ Optional: Use __TARGET_USER__ placeholder to display victim username.
 
 ---
 
-Data Captured
+## Creating Captured
 
 File Contents
 data.txt GPS, device info, form data, photo logs
@@ -162,7 +162,7 @@ captures/*.jpg Camera photos
 
 ---
 
-Troubleshooting
+## Data
 
 GPS Not Prompting
 
@@ -172,7 +172,7 @@ GPS Not Prompting
 
 
 
-Security Notes
+## Troubleshooting Notes
 
 · PHP built-in server is single-threaded
 · Cloudflared links are temporary
@@ -180,19 +180,21 @@ Security Notes
 
 ---
 
-Disclaimer
+ ## Disclaimer
 
-This project is for educational purposes only. The developer is not responsible for any misuse or damage caused by this tool. Always comply with applicable laws and regulations.
+**This project is for educational purposes only. The developer is not responsible for any misuse or damage caused by this tool. Always comply with applicable laws and regulations.**
 
 ---
 
-Credits
+## Credits
+The idea was taken from techchipnet
+**GitHub: github.com/techchipnet**
+## Redeveloped by: DAWOOD Disclaimer
 
-Developer: DawoodKhan5218
 GitHub: github.com/DawoodKhan5218
 
 ---
 
 License
 
-Educational purposes only. Use responsibly.
+Educational purposes only. Use responsiblresponsibly
