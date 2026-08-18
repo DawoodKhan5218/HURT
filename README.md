@@ -52,6 +52,7 @@ Clone and Run
 
 ```bash
 git clone https://github.com/DawoodKhan5218/HURT.git
+cd HURT
 cd hurt
 chmod +x hurt.sh
 ./hurt.sh
